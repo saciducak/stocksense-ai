@@ -16,6 +16,8 @@ The primary goal of this repository is to demonstrate a completely productionize
 - **ONNX Export and Serving:** Model graphs are rigorously verified, constant-folded, and converted to ONNX standard formats to be executed over ONNXRuntime.
 - **MLOps Architecture:** Automated metric tracking, statistical A/B Testing protocols, MLflow model registries, and API model lazy-loading.
 - **Production API:** A heavily concurrent FastAPI service ready to be containerized and shipped for real-time predictions.
+- **Generative AI & RAG:** Local RAG system using **Qwen 2.5** (via Ollama) and **LangChain** to generate human-readable investment strategies combining quantitative forecasts and news sentiment.
+- **LLM Fine-Tuning Boilerplate:** Includes a **PEFT (LoRA/QLoRA)** training pipeline to demonstrate state-of-the-art model alignment and instruction tuning protocols.
 
 ## Architecture
 
@@ -84,8 +86,8 @@ stocksense-ai/
 ```
 
 ## Future Work & Extensions
-- Expanding the NLP layer to utilize Parameter-Efficient Fine-Tuning (PEFT) with LoRA over models like Llama-3, creating a self-hosted Financial RAG context system.
 - Transitioning the ONNX baseline into TensorRT clusters to measure intra-GPU sub-batch latencies.
+- Implementing Distributed Data Parallel (DDP) for large-scale Transformer training.
 
 ## License
 MIT License.

@@ -154,7 +154,7 @@ def _ensure_llm_loaded() -> None:
         logger.info("Loading Local LLM integration (Ollama RAG)...")
         from src.nlp.llm_rag_chain import FinancialRAGSystem
 
-        _analyzers["rag_system"] = FinancialRAGSystem(model_name="llama3")
+        _analyzers["rag_system"] = FinancialRAGSystem(model_name="qwen2.5")
         _analyzers["llm_loaded"] = True
 
         logger.info("✅ LLM RAG initialized")

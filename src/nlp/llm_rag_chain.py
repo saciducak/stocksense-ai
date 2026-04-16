@@ -5,7 +5,7 @@ executive financial summaries based on quantitative price predictions
 and qualitative news sentiments.
 
 Features:
-- Connects to localized `llama3` via Ollama for zero-cost secure inference.
+- Connects to localized `qwen2.5` via Ollama for zero-cost secure inference.
 - Constructs an expert persona prompt for accurate Wall-Street style analysis.
 - Consolidates quantitative model results with context to perform RAG.
 """
@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 class FinancialRAGSystem:
     """Retrieval-Augmented Generation for Stock Analysis."""
     
-    def __init__(self, model_name: str = "llama3", temperature: float = 0.2):
+    def __init__(self, model_name: str = "qwen2.5", temperature: float = 0.2):
         """Initialize Local RAG system via Ollama.
         
         Args:

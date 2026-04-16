@@ -4,7 +4,7 @@ This script demonstrates Advanced Generative AI competencies specifically reques
 in senior ML roles: PEFT (Parameter-Efficient Fine-Tuning), QLoRA, and Instruction Tuning.
 
 Objective:
-Adapt an open-source LLM (e.g., Llama-3 or Mistral) to generate highly specialized
+Adapt an open-source LLM (e.g., Qwen 2.5 or Llama-3) to generate highly specialized
 financial analysis summaries from raw stock price predictions and FinBERT sentiments.
 
 Warning:
@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 @dataclass
 class FinetuneConfig:
     """Configuration for LLM Fine-Tuning."""
-    model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct"  # Target Base Model
+    model_name: str = "Qwen/Qwen2.5-7B-Instruct"  # Target Base Model (State of the art 7B)
     dataset_name: str = "financial_reports_dataset"          # Proprietary/Simulated target data
     output_dir: str = "models/llm_adapters"
     
@@ -101,13 +101,17 @@ def load_financial_dataset(tokenizer, dataset_name: str):
     
     # Example format mapping
     def format_instruction(sample):
-        return f"""<|begin_of_text|><|start_header_id|>user<|end_header_id|>
+        return f"""<|im_start|>system
+You are an expert financial analyst. Analyze the data provided.
+<|im_end|>
+<|im_start|>user
 Analyze this predictive data:
 Price Target: {sample['target']}
 Sentiment: {sample['sentiment']}
 News Context: {sample['news']}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-{sample['expert_analysis']}<|eot_id|>"""
+<|im_end|>
+<|im_start|>assistant
+{sample['expert_analysis']}<|im_end|>"""
         
     # In a real scenario, we load from HuggingFace Hub or local JSONL
     # dataset = load_dataset("json", data_files=dataset_name)
