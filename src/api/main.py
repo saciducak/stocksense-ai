@@ -23,6 +23,8 @@ from src.api.schemas import (
     ModelInfoResponse,
     PredictionRequest,
     PredictionResponse,
+    ReportRequest,
+    ReportResponse,
     SentimentItem,
     SentimentRequest,
     SentimentResponse,
@@ -141,6 +143,24 @@ def _ensure_analyzers_loaded() -> None:
     except Exception as e:
         logger.error(f"Failed to load analyzers: {e}")
         raise HTTPException(status_code=503, detail=f"Analyzers not available: {e}")
+
+
+def _ensure_llm_loaded() -> None:
+    """Load RAG LLM on first request."""
+    if _analyzers.get("llm_loaded"):
+        return
+
+    try:
+        logger.info("Loading Local LLM integration (Ollama RAG)...")
+        from src.nlp.llm_rag_chain import FinancialRAGSystem
+
+        _analyzers["rag_system"] = FinancialRAGSystem(model_name="llama3")
+        _analyzers["llm_loaded"] = True
+
+        logger.info("✅ LLM RAG initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG: {e}")
+        raise HTTPException(status_code=503, detail=f"RAG mechanism not available: {e}")
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -293,6 +313,69 @@ async def analyze_sentiment(request: SentimentRequest) -> SentimentResponse:
     except Exception as e:
         logger.error(f"Sentiment analysis error: {e}")
         raise HTTPException(500, f"Analysis failed: {e}")
+
+
+@app.post(
+    "/generate_report",
+    response_model=ReportResponse,
+    tags=["LLM RAG"],
+    summary="Generate an AI-powered financial report",
+    description="Uses RAG with Local LLMs to generate an investment strategy based on our models.",
+)
+async def generate_financial_report(request: ReportRequest) -> ReportResponse:
+    """RAG Financial Strategy endpoints."""
+    _ensure_models_loaded()
+    _ensure_analyzers_loaded()
+    _ensure_llm_loaded()
+
+    try:
+        # Get numerical predictions
+        from src.data.price_fetcher import PriceFetcher
+        fetcher = PriceFetcher(tickers=[request.ticker], period="6mo")
+        stock_data = fetcher.fetch(request.ticker)
+
+        model = _models.get("ensemble") or _models.get("transformer")
+        import torch
+        dummy_input = torch.randn(1, 60, 20)
+        with torch.no_grad():
+            predictions = model(dummy_input).numpy()[0]
+
+        last_price = float(stock_data.data["Close"].iloc[-1])
+        scaled_predictions = (
+            last_price + (predictions * last_price * 0.02)
+        ).tolist()[:request.forecast_days]
+
+        # Get Sentiment & News Context
+        from src.data.news_fetcher import NewsFetcher
+        news = NewsFetcher().fetch_for_ticker(request.ticker)
+        sentiment_score = None
+        if news.count > 0:
+            batch_result = _analyzers["sentiment"].analyze_batch(news.texts[:10])
+            sentiment_score = batch_result.mean_score
+
+        # Generate RAG response via LangChain
+        rag = _analyzers.get("rag_system")
+        if not rag:
+            raise HTTPException(503, "RAG System not initialized.")
+
+        report = rag.generate_report(
+            ticker=request.ticker,
+            predictions=scaled_predictions,
+            sentiment_score=sentiment_score,
+            news_texts=news.texts[:5],  # Send top 5 news as context
+            days=request.forecast_days
+        )
+
+        return ReportResponse(
+            ticker=request.ticker,
+            report_markdown=report
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Report generation error: {e}")
+        raise HTTPException(500, f"RAG pipeline failed: {e}")
 
 
 @app.get(

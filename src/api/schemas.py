@@ -81,6 +81,36 @@ class SentimentRequest(BaseModel):
     )
 
 
+class ReportRequest(BaseModel):
+    """Request body for LLM Executive Report.
+
+    Example:
+        {
+            "ticker": "AAPL",
+            "forecast_days": 5
+        }
+    """
+
+    ticker: str = Field(
+        default="AAPL",
+        description="Stock ticker symbol",
+        min_length=1,
+        max_length=10,
+    )
+    forecast_days: int = Field(
+        default=5,
+        description="Number of days to forecast",
+        ge=1,
+        le=30,
+    )
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_ticker(cls, v: str) -> str:
+        """Normalize ticker to uppercase."""
+        return v.upper().strip()
+
+
 # ─── Response Schemas ─────────────────────────────────────────────────────────
 
 class PredictionResponse(BaseModel):
@@ -136,6 +166,14 @@ class SentimentResponse(BaseModel):
         default=None,
         description="Extracted entities (if requested)",
     )
+
+
+class ReportResponse(BaseModel):
+    """Response for LLM Executive Report."""
+
+    ticker: str
+    report_markdown: str = Field(description="The RAG-generated executive summary")
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
 class HealthResponse(BaseModel):
