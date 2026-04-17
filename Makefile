@@ -18,6 +18,9 @@ train-lstm: ## Train LSTM baseline
 train-transformer: ## Train Transformer model
 	python scripts/train.py --config configs/config.yaml --model transformer
 
+finetune: ## Demonstrate LLM Fine-Tuning (LoRA/PEFT)
+	PYTHONPATH=. python scripts/finetune_llm.py
+
 # ─── Evaluation ───────────────────────────────────────────────
 evaluate: ## Evaluate model performance
 	python scripts/evaluate.py --config configs/config.yaml

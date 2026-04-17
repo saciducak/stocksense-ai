@@ -8,6 +8,24 @@ Traditional financial forecasting often relies exclusively on either historical 
 
 The primary goal of this repository is to demonstrate a completely productionized MLOps lifecycle—from experimental tracking to optimized, sub-millisecond edge API serving.
 
+## 🏗 System Architecture
+
+```mermaid
+graph TD
+    A[Market Data / yfinance] --> B[Feature Engineering]
+    C[Financial News / RSS] --> D[FinBERT Sentiment]
+    B --> E[Preprocessor / Scaler]
+    E --> F[Transformer + LSTM Ensemble]
+    F --> G[Quantitative Prediction]
+    D --> H[Qualitative Signal]
+    G --> I[LangChain RAG Engine]
+    H --> I
+    I --> J[Qwen 2.5 LLM / Ollama]
+    J --> K[AI Investment Report]
+    K --> L[FastAPI / Production REST]
+```
+
+
 ## Key Features
 
 - **Time-Series Deep Learning:** Custom PyTorch Transformer Encoder with sinusoidal embeddings designed for highly volatile sequential data, benchmarked against a Bi-LSTM baseline.
@@ -19,6 +37,29 @@ The primary goal of this repository is to demonstrate a completely productionize
 - **Generative AI & RAG:** Local RAG system using **Qwen 2.5** (via Ollama) and **LangChain** to generate human-readable investment strategies combining quantitative forecasts and news sentiment.
 - **LLM Fine-Tuning Boilerplate:** Includes a **PEFT (LoRA/QLoRA)** training pipeline to demonstrate state-of-the-art model alignment and instruction tuning protocols.
 
+### 📊 Model Comparison
+
+| Feature | Transformer Encoder (Custom) | Bidirectional LSTM |
+| :--- | :--- | :--- |
+| **Architecture** | Attention-based Parallel Processing | Recurrent Sequential Memory |
+| **Temporal Range** | Context-aware Global Dependencies | Limited by Vanishing Gradients |
+| **Normalization** | Pre-Normalization (Stable-Transformer) | Standard Batch/Layer Norm |
+| **Speed** | High (Parallelizable) | Moderate (Sequential) |
+| **Interpretability** | Attention Maps (XAI) | Hidden State Visualization |
+
+## 🧬 MLOps Lifecycle
+
+```mermaid
+graph LR
+    A[Train / make train] --> B[Track / MLflow]
+    B --> C[Evaluate / metrics]
+    C --> D[Register / Model Registry]
+    D --> E[A/B Test / Paired T-test]
+    E --> F[Optimize / ONNX + Quant]
+    F --> G[Serve / FastAPI]
+    G --> A
+```
+
 ## Architecture
 
 1. **Extraction:** `PriceFetcher` and `NewsFetcher` gather market footprints via yfinance and RSS respectively.
@@ -27,6 +68,23 @@ The primary goal of this repository is to demonstrate a completely productionize
 4. **Optimization:** Conversion to quantized, ONNX-optimized deployment bundles.
 5. **Serving Layer:** Uvicorn/FastAPI instance presenting scalable endpoints.
 6. **Logging:** MLflow logs architectures, weights, hyperparams, and performance regressions.
+
+### 🤖 RAG Pipeline Flow
+
+```mermaid
+sequenceDiagram
+    participant P as PyTorch Engine
+    participant F as FinBERT
+    participant L as LangChain
+    participant Q as Qwen 2.5 (Ollama)
+    
+    P->>L: Quantitative Forecasts (+/- %)
+    F->>L: News Sentiment Score
+    L->>L: Construct Contextual Prompt
+    L->>Q: Request Analyst Report
+    Q-->>L: Generated Human-Readable Text
+    L-->>UI: Final Investment Strategy
+```
 
 ## Setup & Installation
 
