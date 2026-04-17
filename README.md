@@ -12,17 +12,44 @@ The primary goal of this repository is to demonstrate a completely productionize
 
 ```mermaid
 graph TD
-    A[Market Data / yfinance] --> B[Feature Engineering]
-    C[Financial News / RSS] --> D[FinBERT Sentiment]
-    B --> E[Preprocessor / Scaler]
-    E --> F[Transformer + LSTM Ensemble]
-    F --> G[Quantitative Prediction]
-    D --> H[Qualitative Signal]
-    G --> I[LangChain RAG Engine]
-    H --> I
-    I --> J[Qwen 2.5 LLM / Ollama]
-    J --> K[AI Investment Report]
-    K --> L[FastAPI / Production REST]
+    %% Base Styles
+    classDef data fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef engine fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef rag fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef deploy fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+
+    subgraph "Data Ingestion Layer"
+        A1[Market Data / yfinance]
+        A2[Financial News / RSS]
+        A1 & A2 --> B[Feature Engineering]
+        B --> C[Preprocessor / Scaler]
+    end
+
+    subgraph "Intelligence Engine"
+        C --> D1[Transformer Encoder]
+        C --> D2[Bi-LSTM Baseline]
+        A2 --> D3[FinBERT Sentiment]
+        D1 & D2 --> E[Model Ensemble]
+    end
+
+    subgraph "Knowledge Synthesis (RAG)"
+        E --> F[Quantitative Predictions]
+        D3 --> G[Qualitative Signals]
+        F & G --> H[LangChain Engine]
+        H -- "Context Injection" --> I[Qwen 2.5 LLM]
+    end
+
+    subgraph "Inference & Serving"
+        I --> J[AI Strategy Report]
+        J --> K[FastAPI Production REST]
+        K --> L[Streamlit Dashboard]
+    end
+
+    %% Apply Classes
+    class A1,A2,B,C data;
+    class D1,D2,D3,E engine;
+    class F,G,H,I rag;
+    class J,K,L deploy;
 ```
 
 
