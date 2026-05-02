@@ -1,12 +1,10 @@
 # StockSense AI
 
-An end-to-end stock intelligence and price prediction platform featuring custom transformer architectures, dynamic quantization, and MLOps pipelines. This project combines strict PyTorch-based technical forecasting with real-time financial NLP to produce highly optimized, production-ready inferences.
+Welcome to StockSense AI. I built this project to tackle a common problem in quantitative finance: the disconnect between raw price action and unstructured market sentiment. Instead of relying solely on traditional time-series models or basic sentiment scores, I wanted to engineer a system that genuinely synthesizes both, much like a human analyst would, but at scale.
 
-## Overview
+This repository serves as a blueprint for a production-grade **Intelligence Lifecycle**. My focus here was on architectural rigor—designing custom PyTorch Transformer encoders for volatile OHLCV data, integrating a robust NLP pipeline using FinBERT for sentiment and NER, and tying it all together with an agentic RAG layer using local LLMs (Qwen 2.5) via LangChain. 
 
-Traditional financial forecasting often relies exclusively on either historical price action or broad sentiment, missing the intersection of the two. **StockSense AI** bridges this gap. It processes live historical market data via walk-forward splits, generates forecasts using an ensemble of Bi-LSTMs and Custom Pre-Norm Transformers, and adjusts confidence margins using a built-in pre-trained FinBERT pipeline for news sentiment. 
-
-The primary goal of this repository is to demonstrate a production-grade **Intelligence Lifecycle**—from training custom Transformers to orchestrating RAG systems with local LLMs and optimizing inference for sub-millisecond latency.
+Beyond just getting good predictions, I spent a lot of time on inference engineering. By applying post-training dynamic quantization (INT8) and exporting to ONNX Runtime, the system is optimized for sub-millisecond latency, making it ready for real-time edge serving.
 
 ## 🧠 Core Intelligence Architecture
 
@@ -18,25 +16,25 @@ graph TD
     classDef opt fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
 
     subgraph "Deep Learning Engine"
-        A1[Time-Series Data] --> B1[Transformer Encoder <br/><i>(nn.TransformerEncoder, PositionalEncoding)</i>]
+        A1[Time-Series Data] --> B1["Transformer Encoder <br/><i>(nn.TransformerEncoder, PositionalEncoding)</i>"]
         A1 --> B2[Bi-LSTM Baseline]
         B1 & B2 --> C1[Model Ensemble / Weighted Average]
     end
 
     subgraph "Natural Language Processing"
-        A2[Financial News] --> B3[Sentiment Analysis <br/><i>(HuggingFace/FinBERT)</i>]
-        A2 --> B4[Named Entity Recognition <br/><i>(Rule-based NER)</i>]
+        A2[Financial News] --> B3["Sentiment Analysis <br/><i>(HuggingFace/FinBERT)</i>"]
+        A2 --> B4["Named Entity Recognition <br/><i>(Rule-based NER)</i>"]
     end
 
     subgraph "Knowledge Synthesis (RAG)"
         C1 --> E1[Quantitative Signal]
         B3 --> E1
         E1 --> F1[LangChain RAG Engine]
-        F1 -- "Augmented Context" --> G1[Qwen 2.5 LLM <br/><i>(Ollama/Local)</i>]
+        F1 -- "Augmented Context" --> G1["Qwen 2.5 LLM <br/><i>(Ollama/Local)</i>"]
     end
 
     subgraph "Inference Optimization"
-        G1 --> H1[Quantized Inference <br/><i>(INT8 Dynamic Quant)</i>]
+        G1 --> H1["Quantized Inference <br/><i>(INT8 Dynamic Quant)</i>"]
         H1 --> H2[ONNX Runtime Execution]
     end
 
@@ -46,15 +44,13 @@ graph TD
     class F1,G1,H1,H2 opt;
 ```
 
+## ⚙️ Technical Highlights
 
-## Key Features
-
-- **Context-Aware Deep Learning:** Custom PyTorch Transformer Encoder utilizing **Multi-Head Self-Attention** and **Sinusoidal Positional Encodings** to capture long-term dependencies in volatile OHLCV data.
-- **Financial NLP Pipeline:** Domain-specific sentiment analysis using **FinBERT** (ProsusAI) and financial Named Entity Recognition (NER) to align news triggers with quantitative signals.
-- **RAG & Knowledge Synthesis:** An intelligent agentic layer built on **LangChain**, synthesizing numerical forecasts and unstructured news data for **Qwen 2.5 (7B-Instruct)** to generate professional investment reports.
-- **Inference Engineering:** Advanced model compression via **Post-Training Dynamic Quantization (INT8)** and graph conversion to **ONNX Runtime**, achieving significant latency reduction for real-time serving.
-- **Alignment & Fine-Tuning:** Instruction-tuning boilerplate using **PEFT (LoRA/QLoRA)** for large-scale model adaptation on specialized financial datasets.
-- **MLOps & Evaluation:** Statistical validation of model performance using **Paired T-Tests (p-value < 0.05)** and experiment tracking with **MLflow**.
+- **Deep Learning Engine:** I implemented a custom PyTorch Transformer Encoder with Multi-Head Self-Attention and Sinusoidal Positional Encodings. Time-series financial data is incredibly noisy, and this architecture helps capture long-term dependencies much better than standard RNNs.
+- **Financial NLP Pipeline:** To give the model context, I integrated **FinBERT** (ProsusAI) for domain-specific sentiment analysis and built a rule-based Named Entity Recognition (NER) pipeline. This aligns real-world news triggers directly with our quantitative signals.
+- **Agentic RAG Synthesis:** Instead of just outputting numbers, I built an intelligent layer using **LangChain**. It synthesizes the numerical forecasts and unstructured news data, feeding it as augmented context into a local **Qwen 2.5 (7B-Instruct)** model to generate professional, readable investment reports.
+- **Inference Engineering:** PyTorch models can be heavy. To make this API production-ready, I applied **Post-Training Dynamic Quantization (INT8)** and converted the execution graphs to **ONNX Runtime**. This drastically reduced latency and memory footprint.
+- **MLOps & Validation:** Model performance is statistically validated using Paired T-Tests (p-value < 0.05). I also integrated **MLflow** to track experiments, hyperparameters, and model registries systematically.
 
 ### 📊 Model Comparison
 
@@ -79,16 +75,16 @@ graph LR
     G --> A
 ```
 
-## Architecture
+## 🏗 System Flow
 
-1. **Extraction:** `PriceFetcher` and `NewsFetcher` gather market footprints via yfinance and RSS respectively.
-2. **Preprocessing:** Configurable Technical Indicator injections (RSI, MACD, Bollinger Bands) and standard scaling.
-3. **Core Forecasting:** Single or Ensemble inferences over `PyTorch`.
-4. **Optimization:** Conversion to quantized, ONNX-optimized deployment bundles.
-5. **Serving Layer:** Uvicorn/FastAPI instance presenting scalable endpoints.
-6. **Logging:** MLflow logs architectures, weights, hyperparams, and performance regressions.
+1. **Extraction:** Gathering market data via `yfinance` and parsing RSS feeds for breaking financial news.
+2. **Preprocessing:** Engineering features like RSI, MACD, and Bollinger Bands, alongside robust standard scaling.
+3. **Core Forecasting:** Running our ensemble of PyTorch models to generate baseline predictions.
+4. **Optimization:** Quantizing the models and porting them to ONNX for lightning-fast inference.
+5. **Serving Layer:** Exposing the intelligence through a highly concurrent Uvicorn/FastAPI instance.
+6. **Logging:** Keeping everything reproducible and tracked via MLflow.
 
-### 🤖 RAG Pipeline Flow
+### 🤖 RAG Pipeline Architecture
 
 ```mermaid
 sequenceDiagram
@@ -105,13 +101,13 @@ sequenceDiagram
     L-->>UI: Final Investment Strategy
 ```
 
-## Setup & Installation
+## 🛠 Setup & Installation
 
-**Prerequisites:** Python 3.10+ highly recommended. Make sure virtual environments are used.
+**Prerequisites:** Python 3.10+ is highly recommended. Please use a virtual environment.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/stocksense-ai.git
+git clone https://github.com/saciducak/stocksense-ai.git
 cd stocksense-ai
 
 # Set up the Python environment
@@ -122,19 +118,19 @@ source venv/bin/activate
 make install
 ```
 
-## Quick Start / Commands
+## 🚀 Quick Start Commands
 
-This template provides a `Makefile` for streamlined command execution.
+I've provided a `Makefile` to abstract away the boilerplate and make running the pipeline straightforward.
 
 **Training & Experiments:**
 ```bash
-make train                        # Train Transformer
-make train-lstm                   # Train LSTM
+make train                        # Train the Custom Transformer
+make train-lstm                   # Train the LSTM baseline
 make train MODEL=all              # Train all models concurrently
 ```
 
 **Optimization Pipeline:**
-*(Warning: The PyTorch ONNX exporter requires batch size to be isolated to 1 for MultiheadAttention nodes unless `dynamic_shapes` is aggressively configured. This script automatically handles this bug.)*
+*(Note: I've included workarounds in the optimization script to handle PyTorch ONNX exporter bugs related to MultiheadAttention batch sizes.)*
 ```bash
 make optimize                     # Runs Quantization, ONNX Export, and Benchmarks
 ```
@@ -145,7 +141,7 @@ make serve                        # Spin up the FastAPI prediction server
 make mlflow-ui                    # Track runs via MLFlow Local Tracking Server
 ```
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 stocksense-ai/
@@ -162,9 +158,9 @@ stocksense-ai/
 └── pyproject.toml         # Packaging bounds
 ```
 
-## Future Work & Extensions
+## 🔮 Future Work & Extensions
 - Transitioning the ONNX baseline into TensorRT clusters to measure intra-GPU sub-batch latencies.
-- Implementing Distributed Data Parallel (DDP) for large-scale Transformer training.
+- Implementing Distributed Data Parallel (DDP) for large-scale Transformer training to handle tick-level data.
 
 ## License
 MIT License.
