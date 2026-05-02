@@ -6,63 +6,55 @@ An end-to-end stock intelligence and price prediction platform featuring custom 
 
 Traditional financial forecasting often relies exclusively on either historical price action or broad sentiment, missing the intersection of the two. **StockSense AI** bridges this gap. It processes live historical market data via walk-forward splits, generates forecasts using an ensemble of Bi-LSTMs and Custom Pre-Norm Transformers, and adjusts confidence margins using a built-in pre-trained FinBERT pipeline for news sentiment. 
 
-The primary goal of this repository is to demonstrate a completely productionized MLOps lifecycle—from experimental tracking to optimized, sub-millisecond edge API serving.
+The primary goal of this repository is to demonstrate a production-grade **Intelligence Lifecycle**—from training custom Transformers to orchestrating RAG systems with local LLMs and optimizing inference for sub-millisecond latency.
 
-## 🏗 System Architecture
+## 🧠 Core Intelligence Architecture
 
 ```mermaid
 graph TD
     %% Base Styles
-    classDef data fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef engine fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef rag fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
-    classDef deploy fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+    classDef nlp fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef opt fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
 
-    subgraph "Data Ingestion Layer"
-        A1[Market Data / yfinance]
-        A2[Financial News / RSS]
-        A1 & A2 --> B[Feature Engineering]
-        B --> C[Preprocessor / Scaler]
+    subgraph "Deep Learning Engine"
+        A1[Time-Series Data] --> B1[Transformer Encoder <br/><i>(nn.TransformerEncoder, PositionalEncoding)</i>]
+        A1 --> B2[Bi-LSTM Baseline]
+        B1 & B2 --> C1[Model Ensemble / Weighted Average]
     end
 
-    subgraph "Intelligence Engine"
-        C --> D1[Transformer Encoder]
-        C --> D2[Bi-LSTM Baseline]
-        A2 --> D3[FinBERT Sentiment]
-        D1 & D2 --> E[Model Ensemble]
+    subgraph "Natural Language Processing"
+        A2[Financial News] --> B3[Sentiment Analysis <br/><i>(HuggingFace/FinBERT)</i>]
+        A2 --> B4[Named Entity Recognition <br/><i>(Rule-based NER)</i>]
     end
 
     subgraph "Knowledge Synthesis (RAG)"
-        E --> F[Quantitative Predictions]
-        D3 --> G[Qualitative Signals]
-        F & G --> H[LangChain Engine]
-        H -- "Context Injection" --> I[Qwen 2.5 LLM]
+        C1 --> E1[Quantitative Signal]
+        B3 --> E1
+        E1 --> F1[LangChain RAG Engine]
+        F1 -- "Augmented Context" --> G1[Qwen 2.5 LLM <br/><i>(Ollama/Local)</i>]
     end
 
-    subgraph "Inference & Serving"
-        I --> J[AI Strategy Report]
-        J --> K[FastAPI Production REST]
-        K --> L[Streamlit Dashboard]
+    subgraph "Inference Optimization"
+        G1 --> H1[Quantized Inference <br/><i>(INT8 Dynamic Quant)</i>]
+        H1 --> H2[ONNX Runtime Execution]
     end
 
     %% Apply Classes
-    class A1,A2,B,C data;
-    class D1,D2,D3,E engine;
-    class F,G,H,I rag;
-    class J,K,L deploy;
+    class B1,B2,C1 engine;
+    class B3,B4 nlp;
+    class F1,G1,H1,H2 opt;
 ```
 
 
 ## Key Features
 
-- **Time-Series Deep Learning:** Custom PyTorch Transformer Encoder with sinusoidal embeddings designed for highly volatile sequential data, benchmarked against a Bi-LSTM baseline.
-- **Financial NLP Engine:** Integrated Hugging Face zero-shot FinBERT model to calculate composite market sentiment and perform financial Named Entity Recognition (NER).
-- **Inference Optimization:** Implements advanced Post-Training Dynamic Quantization (FP32 -> INT8) focusing dynamically on non-transformer layers to bypass internal Pytorch `fast-path` bugs, achieving ~60% size reduction without accuracy degradation.
-- **ONNX Export and Serving:** Model graphs are rigorously verified, constant-folded, and converted to ONNX standard formats to be executed over ONNXRuntime.
-- **MLOps Architecture:** Automated metric tracking, statistical A/B Testing protocols, MLflow model registries, and API model lazy-loading.
-- **Production API:** A heavily concurrent FastAPI service ready to be containerized and shipped for real-time predictions.
-- **Generative AI & RAG:** Local RAG system using **Qwen 2.5** (via Ollama) and **LangChain** to generate human-readable investment strategies combining quantitative forecasts and news sentiment.
-- **LLM Fine-Tuning Boilerplate:** Includes a **PEFT (LoRA/QLoRA)** training pipeline to demonstrate state-of-the-art model alignment and instruction tuning protocols.
+- **Context-Aware Deep Learning:** Custom PyTorch Transformer Encoder utilizing **Multi-Head Self-Attention** and **Sinusoidal Positional Encodings** to capture long-term dependencies in volatile OHLCV data.
+- **Financial NLP Pipeline:** Domain-specific sentiment analysis using **FinBERT** (ProsusAI) and financial Named Entity Recognition (NER) to align news triggers with quantitative signals.
+- **RAG & Knowledge Synthesis:** An intelligent agentic layer built on **LangChain**, synthesizing numerical forecasts and unstructured news data for **Qwen 2.5 (7B-Instruct)** to generate professional investment reports.
+- **Inference Engineering:** Advanced model compression via **Post-Training Dynamic Quantization (INT8)** and graph conversion to **ONNX Runtime**, achieving significant latency reduction for real-time serving.
+- **Alignment & Fine-Tuning:** Instruction-tuning boilerplate using **PEFT (LoRA/QLoRA)** for large-scale model adaptation on specialized financial datasets.
+- **MLOps & Evaluation:** Statistical validation of model performance using **Paired T-Tests (p-value < 0.05)** and experiment tracking with **MLflow**.
 
 ### 📊 Model Comparison
 
