@@ -27,31 +27,40 @@ Bu projede veri nereden akar, nerede işlenir ve nihai RAG çıktısına nasıl 
 
 ## 2. "Kodda Nerede ve Neden?" - Mimari Tercihlerin Savunması
 
-### 📝 FinBERT Kullanımı: Nerede ve Neden?
-- **Kod Nerede?** `src/nlp/sentiment_analyzer.py` içerisinde.
-- **Nasıl Çalışır?** `ProsusAI/finbert` modeli `AutoModelForSequenceClassification` ile yüklenir. GPU/MPS tespiti otomatik yapılır. `analyze_batch` fonksiyonunda haberler önbellek (cache) mimarisiyle batch (toplu) olarak işlenir.
-- **Neden Seçildi?** Standart BERT, finansal metinleri yanlış anlar. Örneğin "Hisse %5 düştü" cümlesi standart BERT için nötr olabilirken, FinBERT bunu 50.000 finans makalesiyle eğitildiği için doğru şekilde "Negatif" olarak sınıflandırır. Bu, sayısal verimi haberlerle hizalamak (alignment) için şarttır.
+### ⚙️ Derin Öğrenme: Transformer Encoder (OHLCV + MHA + PE)
+- **Kod Nerede?** `src/models/transformer_model.py` içerisinde `TransformerPredictor` sınıfında.
+- **Nasıl Çalışır?** Model, `OHLCV` tabanlı zaman serisi (time-series) verilerini girdi olarak alır.
+  1. **Positional Encoding (PE):** Transformer'lar sıralamayı (sequential order) doğal olarak bilmediği için, `sin(pos / 10000^(2i/d_model))` formülüne dayanan *Sinusoidal Positional Encoding* eklenir. Bu, modelin farklı uzunluklardaki zaman serilerine uyum sağlamasına olanak tanır.
+  2. **Multi-Head Attention (MHA):** Model `nn.TransformerEncoderLayer` kullanır. RNN'lerin aksine geçmişe sırayla gitmek yerine, tüm tarihsel günlere (global dependencies) aynı anda odaklanarak volatil piyasa verilerini analiz eder.
+  3. Eğitim kararlılığı için `norm_first=True` (Pre-norm) kullanılır ve son adımda `encoded.mean(dim=1)` ile *Global Average Pooling* yapılarak tahminler `FC` (Fully Connected) katmanlarına verilir.
 
-### 🔍 Varlık Tanıma (NER): Nerede ve Nasıl?
-- **Kod Nerede?** `src/nlp/entity_extractor.py` içerisinde.
-- **Nasıl Çalışır?** İkili bir sistem vardır. 1. `pipeline("ner", model="dslim/bert-base-NER")` ile genel ORG, PER, LOC varlıkları bulunur. 2. `re.compile` kullanılarak finansal (ticker, $, milyar/milyon) ifadeleri regex fallback ile çıkarılır (örn. blacklist filtresiyle İngilizce bağlaçlar elenir).
-- **Neden Bu Yaklaşım?** Saf bir LLM'e tüm metni verip "Bana ticker'ları bul" demek çok pahalı (token cost) ve yavaştır. Bert-base-NER ve Regex kombinasyonu deterministik, ucuz ve sub-millisecond hızında çalışır.
+### 📉 Baseline Karşılaştırması: Bi-LSTM
+- **Kod Nerede?** `src/models/lstm_model.py` içerisinde `LSTMPredictor` sınıfı.
+- **Nasıl Çalışır?** Geleneksel olarak `bidirectional=True` ayarıyla çalışır; zaman serisini hem geçmişten geleceğe hem de gelecekten geçmişe okuyarak temporal (zamansal) bağımlılıkları yakalar.
+- **Neden Var?** Bi-LSTM, projede Transformer modeli için bir 'baseline' (kıyaslama noktası) görevi görür. Bi-LSTM sadece son zaman adımının gizli durumunu (last hidden state, `lstm_out[:, -1, :]`) kullanırken, Transformer tüm adımları havuzlar (pooling). Mülakatta bu iki mimarinin farkını anlatırken LSTM'in Vanishing Gradient problemine değinebilirsin.
+
+### 📝 FinBERT Kullanımı ve NER (Varlık Çıkarımı)
+- **FinBERT (Sentiment):** `src/nlp/sentiment_analyzer.py` içinde. Standart BERT finansal metinleri (örn: "işten çıkarma maliyetleri düşürür") yanlış anladığı için, `ProsusAI/finbert` modeli `AutoModelForSequenceClassification` ile yüklenir. *Batch inference* ve *caching* kullanılarak hız optimize edilir.
+- **NER (Entity Extraction):** `src/nlp/entity_extractor.py` içinde. Tüm metni LLM'e verip "Bana ticker'ları bul" demek pahalı olduğu için, `pipeline("ner", model="dslim/bert-base-NER")` ile genel varlıklar bulunur, ekstra olarak Regex (parasalları ve AAPL gibi hisse sembollerini bulmak için) blacklist mantığıyla harmanlanır. Bu iki adım `FinBERT + NER = Context` işlemini en ucuz (computationally cheap) şekilde çözer.
+
+### ⚡ Inference Optimizasyonu: INT8 Dynamic Quantization
+- **Kod Nerede?** `src/optimization/quantizer.py` içerisinde `ModelQuantizer` sınıfında.
+- **Nasıl Çalışır?** PyTorch'un `torch.quantization.quantize_dynamic` fonksiyonu kullanılarak devasa FP32 (32-bit) ağırlıklar INT8'e (8-bit Integer) dönüştürülür. 
+- **Mühendislik Detayı (Önemli):** PyTorch 2.1+ versiyonlarında TransformerEncoder'ın `out_proj.weight` işlemlerinde bir fast-path quantization bug'ı vardır. Kod içerisinde bunu aşmak için özel bir kontrol (`if model_cpu.__class__.__name__ != "TransformerPredictor"`) yazılmıştır. Model Transformer ise `nn.Linear` katmanları dinamik kuantizasyondan hariç tutularak hem ~%60 boyut küçültmesi (RAM tasarrufu) sağlanmış hem de PyTorch hataları bypass edilmiştir.
 
 ### 🤖 LLM Fine-Tuning: LoRA mı QLoRA mı?
 - **Kod Nerede?** `scripts/finetune_llm.py` içerisinde.
 - **Nasıl Yapıldı?** Tamamen **QLoRA** yapıldı. Kodda `BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")` kullanılarak model (Qwen 2.5) 4-bit donduruluyor. Ardından `LoraConfig(r=16, lora_alpha=32)` ile sadece q_proj, v_proj gibi Attention katmanlarına ağırlık adaptörleri takılıyor.
-- **Neden QLoRA?** 7 Milyar parametreli bir modeli (7B) tam (full) fine-tune etmek için devasa A100 GPU'lar gerekir. QLoRA sayesinde sadece adaptörleri (milyonda bir parametre) tüketici sınıfı (RTX 3090 vb.) bir GPU'da 24GB VRAM sınırını aşmadan eğitebiliyorum.
 
-### 🧠 LangChain Entegrasyonu: Nerede ve Neden?
+### 🧠 LangChain Entegrasyonu
 - **Kod Nerede?** `src/nlp/llm_rag_chain.py` içerisinde `FinancialRAGSystem` sınıfında.
-- **Nasıl Çalışır?** `ChatPromptTemplate.from_messages` kullanılarak `system` (analist personası) ve `human` (gelen dinamik metrikler) promptları ayrılır. Ollama üzerinden yerel olarak çalışan modele LangChain Expression Language (LCEL) kullanılarak (`prompt | self.llm | StrOutputParser()`) bağlanır.
-- **Neden LangChain?** LLM API'leri değişkendir. LangChain sayesinde yarın Qwen yerine OpenAI veya Anthropic'e geçmek istersem sadece `ChatOllama` sınıfını `ChatOpenAI` ile değiştirmem yeterlidir. Prompt injection riskini ve RAG context'ini yönetmek için en stabil framework'tür.
+- **Nasıl Çalışır?** Ollama üzerinden yerel Qwen 2.5 modeli çalıştırılır. LangChain Expression Language (LCEL) kullanılarak (`prompt | self.llm | StrOutputParser()`) bir prompt pipeline'ı kurulur. Sayısal modellerin tahminleri ve FinBERT duyarlılık skorları bu RAG zincirine beslenir.
 
 ### 🧬 MLOps ve A/B Testing: MLflow Ne İşe Yarıyor?
 - **Kod Nerede?** `src/mlops/ab_testing.py` ve `src/mlops/experiment_tracker.py` içerisinde.
-- **Nasıl Çalışır?** `ABTestFramework` sınıfı; trafik bazlı (örn. %90 Champion model, %10 Challenger model) yönlendirme yapar. İki modelin aynı verideki tahmin hatalarını (squared errors) toplar ve `scipy.stats.ttest_rel` ile **Paired T-Test** (Eşleştirilmiş T-Testi) uygular. Eğer p-value < 0.05 ise ve hata oranı daha düşükse yeni modeli "PROMOTE" eder.
-- **MLflow Neden Var?** Model denemelerini (örneğin LSTM vs Transformer) sadece konsolda görmek yetmez. MLflow (`training_args(report_to="mlflow")`); denediğim hiperparametreleri (learning rate, epoch vb.), modelin ağırlıklarını ve test metriklerini bir UI dashboard üzerinde kayıt altına alır (Model Registry). Bu, projenin sadece bir "Jupyter Notebook" denemesi olmadığını, tamamen **Bilinçli bir MLOps Mimarisi** olduğunu kanıtlar.
+- **Nasıl Çalışır?** `ABTestFramework` sınıfı trafik bazlı yönlendirme yapar. İki modelin (Transformer vs LSTM) hata paylarını (squared errors) toplar ve `scipy.stats.ttest_rel` ile **Paired T-Test** (Eşleştirilmiş T-Testi) uygular. Eğer p-value < 0.05 ise ve hata oranı düşükse modeli promote eder.
+- **MLflow Neden Var?** Tüm bu deneyleri, p-value sonuçlarını, hiperparametreleri (learning rate vb.) ve model ağırlıklarını bir UI dashboard üzerinde (Model Registry) versiyonlar ve kayıt altına alır.
 
 ---
 
-**Mülakat Tüyosu:** Bu döküman projenin kalbidir. Mülakatçı sana "FinBERT'i nasıl kullandın?" dediğinde, *"HuggingFace pipeline'ı ile aldım"* demek yerine *"src/nlp/sentiment_analyzer.py içinde AutoModelForSequenceClassification ile yükledim, performansı artırmak için 200 karakterlik key'ler ile önbelleğe (cache) aldım ve analizleri batch (toplu) çalıştırarak GPU verimliliğini artırdım"* dersen, karşı taraf senin gerçekten üretim (production) odaklı, kod kalitesi yüksek bir AI mühendisi olduğunu anlar.
+**Mülakat Tüyosu:** Bu döküman projenin kalbidir. Mülakatçı sana "Transformer'da neden Positional Encoding kullandın?" dediğinde, *"Transformer'ların inherent (doğal) bir sıralama yeteneği olmadığı için, sin/cos fonksiyonlarıyla zaman adımını encode ettim (`PositionalEncoding` sınıfı)*" diyebilirsin. Veya "Quantization sırasında sorun yaşadın mı?" sorusuna *"PyTorch 2.1 fast-path bug'ını bypass ettim"* dersen bu seni %1'lik dilime sokar.
